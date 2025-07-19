@@ -41,8 +41,9 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/')
       run: |
         cd vrc-print-gui/build/bin
-        sha256sum vrc-print-gui.exe > vrc-print-gui.exe.sha256
-        zip -r vrc-print-gui-windows.zip vrc-print-gui.exe vrc-print-gui.exe.sha256
+        Get-FileHash vrc-print-gui.exe -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $($_.Path | Split-Path -Leaf)" } | Out-File -FilePath vrc-print-gui.exe.sha256 -Encoding ascii
+        Compress-Archive -Path vrc-print-gui.exe, vrc-print-gui.exe.sha256 -DestinationPath vrc-print-gui-windows.zip
+      shell: pwsh
         
     - name: Create Release
       if: startsWith(github.ref, 'refs/tags/')
