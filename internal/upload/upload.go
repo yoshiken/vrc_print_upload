@@ -20,6 +20,10 @@ const (
 	MaxImageSize   = 32 * 1024 * 1024 // 32MB
 	MaxResolution  = 2048
 	UploadEndpoint = "/prints"
+	
+	// Standard resolutions for VRChat prints
+	Print1080pWidth  = 1920
+	Print1080pHeight = 1080
 )
 
 type Uploader struct {
@@ -49,6 +53,86 @@ func New(client *resty.Client) *Uploader {
 	}
 }
 
+// createMultipartForm creates a multipart form with image data and metadata
+func (u *Uploader) createMultipartForm(imageData []byte, opts Options) (*bytes.Buffer, string, error) {
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	// Add image file with explicit content type
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="image"; filename="%s"`, filepath.Base(opts.ImagePath)))
+	h.Set("Content-Type", "image/png")
+	
+	part, err := writer.CreatePart(h)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to create form part: %w", err)
+	}
+	
+	if _, err := io.Copy(part, bytes.NewReader(imageData)); err != nil {
+		return nil, "", fmt.Errorf("failed to write image data: %w", err)
+	}
+
+	// Add timestamp
+	if err := writer.WriteField("timestamp", time.Now().Format(time.RFC3339)); err != nil {
+		return nil, "", fmt.Errorf("failed to write timestamp: %w", err)
+	}
+
+	// Add optional fields
+	if opts.Note != "" {
+		if err := writer.WriteField("note", opts.Note); err != nil {
+			return nil, "", fmt.Errorf("failed to write note: %w", err)
+		}
+	}
+
+	if opts.WorldID != "" {
+		if err := writer.WriteField("worldId", opts.WorldID); err != nil {
+			return nil, "", fmt.Errorf("failed to write worldId: %w", err)
+		}
+	}
+
+	if opts.WorldName != "" {
+		if err := writer.WriteField("worldName", opts.WorldName); err != nil {
+			return nil, "", fmt.Errorf("failed to write worldName: %w", err)
+		}
+	}
+
+	contentType := writer.FormDataContentType()
+	if err := writer.Close(); err != nil {
+		return nil, "", fmt.Errorf("failed to close multipart writer: %w", err)
+	}
+
+	return body, contentType, nil
+}
+
+// resizeImage resizes the image according to the specified options
+func resizeImage(img image.Image, noResize bool) image.Image {
+	bounds := img.Bounds()
+	width := bounds.Dx()
+	height := bounds.Dy()
+
+	if !noResize {
+		// Resize to 1080p for prints (as per VRChat spec)
+		// 1920x1080 or 1080x1920 depending on orientation
+		if width > height {
+			return imaging.Resize(img, Print1080pWidth, Print1080pHeight, imaging.Lanczos)
+		} else {
+			return imaging.Resize(img, Print1080pHeight, Print1080pWidth, imaging.Lanczos)
+		}
+	} else {
+		// Keep original resolution when noResize is true, but limit to 2048x2048
+		if width > MaxResolution || height > MaxResolution {
+			// Resize to fit within MaxResolution while maintaining aspect ratio
+			if width > height {
+				return imaging.Resize(img, MaxResolution, 0, imaging.Lanczos)
+			} else {
+				return imaging.Resize(img, 0, MaxResolution, imaging.Lanczos)
+			}
+		}
+		// Return original image if no resize needed
+		return img
+	}
+}
+
 func (u *Uploader) Upload(opts Options) (*UploadResult, error) {
 	// Validate and prepare image
 	imageData, err := u.prepareImage(opts.ImagePath, opts.NoResize)
@@ -57,69 +141,15 @@ func (u *Uploader) Upload(opts Options) (*UploadResult, error) {
 	}
 
 	// Create multipart form
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-
-	// Add image file with explicit content type
-	fmt.Printf("Creating form file with name: image, filename: %s\n", filepath.Base(opts.ImagePath))
-	
-	// Create form field with explicit headers
-	h := make(textproto.MIMEHeader)
-	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="image"; filename="%s"`, filepath.Base(opts.ImagePath)))
-	h.Set("Content-Type", "image/png")
-	
-	part, err := writer.CreatePart(h)
+	body, contentType, err := u.createMultipartForm(imageData, opts)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create form part: %w", err)
-	}
-	
-	if _, err := io.Copy(part, bytes.NewReader(imageData)); err != nil {
-		return nil, fmt.Errorf("failed to write image data: %w", err)
-	}
-
-	// Add timestamp
-	if err := writer.WriteField("timestamp", time.Now().Format(time.RFC3339)); err != nil {
-		return nil, fmt.Errorf("failed to write timestamp: %w", err)
-	}
-
-	// Add optional fields
-	if opts.Note != "" {
-		if err := writer.WriteField("note", opts.Note); err != nil {
-			return nil, fmt.Errorf("failed to write note: %w", err)
-		}
-	}
-
-	if opts.WorldID != "" {
-		if err := writer.WriteField("worldId", opts.WorldID); err != nil {
-			return nil, fmt.Errorf("failed to write worldId: %w", err)
-		}
-	}
-
-	if opts.WorldName != "" {
-		if err := writer.WriteField("worldName", opts.WorldName); err != nil {
-			return nil, fmt.Errorf("failed to write worldName: %w", err)
-		}
-	}
-
-	contentType := writer.FormDataContentType()
-	if err := writer.Close(); err != nil {
-		return nil, fmt.Errorf("failed to close multipart writer: %w", err)
+		return nil, fmt.Errorf("failed to create multipart form: %w", err)
 	}
 
 	// Upload
-	fmt.Printf("Uploading to: %s%s\n", u.client.BaseURL, UploadEndpoint)
-	fmt.Printf("Content-Type: %s\n", contentType)
-	fmt.Printf("Body size: %d bytes\n", body.Len())
-	
-	// Debug: show first 500 bytes of the request body
-	bodyBytes := body.Bytes()
-	if len(bodyBytes) > 500 {
-		fmt.Printf("First 500 bytes of body:\n%s\n", string(bodyBytes[:500]))
-	}
-	
 	resp, err := u.client.R().
 		SetHeader("Content-Type", contentType).
-		SetBody(bodyBytes).
+		SetBody(body.Bytes()).
 		SetResult(&UploadResult{}).
 		Post(UploadEndpoint)
 
@@ -127,11 +157,7 @@ func (u *Uploader) Upload(opts Options) (*UploadResult, error) {
 		return nil, fmt.Errorf("upload request failed: %w", err)
 	}
 
-	fmt.Printf("Response status: %d\n", resp.StatusCode())
-	fmt.Printf("Response headers: %v\n", resp.Header())
-	
 	if resp.StatusCode() != 200 {
-		fmt.Printf("Response body: %s\n", resp.String())
 		return nil, fmt.Errorf("upload failed with status %d: %s", resp.StatusCode(), resp.String())
 	}
 
@@ -157,39 +183,13 @@ func (u *Uploader) prepareImage(imagePath string, noResize bool) ([]byte, error)
 	}
 	defer file.Close()
 
-	img, format, err := image.Decode(file)
+	img, _, err := image.Decode(file)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode image: %w", err)
 	}
 
-	// Check if resizing is needed
-	bounds := img.Bounds()
-	width := bounds.Dx()
-	height := bounds.Dy()
-
-	if width > MaxResolution || height > MaxResolution {
-		// Resize to fit within MaxResolution while maintaining aspect ratio
-		if width > height {
-			img = imaging.Resize(img, MaxResolution, 0, imaging.Lanczos)
-		} else {
-			img = imaging.Resize(img, 0, MaxResolution, imaging.Lanczos)
-		}
-		fmt.Printf("Image resized to fit within %dx%d\n", MaxResolution, MaxResolution)
-	}
-
-	// Convert to 1080p for prints (as per VRChat spec)
-	// 1920x1080 or 1080x1920 depending on orientation
-	// Skip this step if noResize is true
-	if !noResize {
-		if width > height {
-			img = imaging.Resize(img, 1920, 1080, imaging.Lanczos)
-		} else {
-			img = imaging.Resize(img, 1080, 1920, imaging.Lanczos)
-		}
-		fmt.Printf("Image resized to 1080p\n")
-	} else {
-		fmt.Printf("Keeping original resolution (up to %dx%d)\n", bounds.Dx(), bounds.Dy())
-	}
+	// Resize image according to options
+	img = resizeImage(img, noResize)
 
 	// Encode as PNG
 	var buf bytes.Buffer
@@ -202,7 +202,7 @@ func (u *Uploader) prepareImage(imagePath string, noResize bool) ([]byte, error)
 		return nil, fmt.Errorf("encoded image too large: %d bytes (max: %d bytes)", buf.Len(), MaxImageSize)
 	}
 
-	fmt.Printf("Image prepared: %s format, converted to PNG (%d bytes)\n", format, buf.Len())
+	// Image prepared and converted to PNG
 	
 	return buf.Bytes(), nil
 }

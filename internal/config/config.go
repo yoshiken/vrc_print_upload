@@ -57,5 +57,12 @@ func (c *Config) ConfigDir() string {
 }
 
 func (c *Config) CookieFile() string {
-	return filepath.Join(c.configDir, "cookies.json")
+	// Get executable directory for portable cookie storage
+	exePath, err := os.Executable()
+	if err != nil {
+		// Fallback to current directory if executable path cannot be determined
+		return "cookies.json"
+	}
+	exeDir := filepath.Dir(exePath)
+	return filepath.Join(exeDir, "cookies.json")
 }

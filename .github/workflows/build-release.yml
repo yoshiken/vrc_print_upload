@@ -1,0 +1,82 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - master
+      - main
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.21'
+        
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Install Wails
+      run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+        
+    - name: Build GUI
+      run: |
+        cd ${{ github.workspace }}/vrc-print-gui
+        wails build --platform windows/amd64
+        
+    - name: Generate SHA256 hash and create ZIP
+      if: startsWith(github.ref, 'refs/tags/')
+      run: |
+        cd vrc-print-gui/build/bin
+        sha256sum vrc-print-gui.exe > vrc-print-gui.exe.sha256
+        zip -r vrc-print-gui-windows.zip vrc-print-gui.exe vrc-print-gui.exe.sha256
+        
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          vrc-print-gui/build/bin/vrc-print-gui.exe
+          vrc-print-gui/build/bin/vrc-print-gui.exe.sha256
+          vrc-print-gui/build/bin/vrc-print-gui-windows.zip
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+        body: |
+          ## VRChat Print Upload GUI
+          
+          ### ダウンロード
+          - **vrc-print-gui.exe**: 単体実行ファイル
+          - **vrc-print-gui-windows.zip**: ZIP形式（実行ファイル + SHA256ハッシュ）
+          
+          ### セキュリティ情報
+          - **SHA256ハッシュ**: vrc-print-gui.exe.sha256ファイルで確認
+          - **VirusTotal**: アップロード後にスキャン結果を確認してください
+          - **ソースコード**: 完全に公開されており、安全性を確認できます
+          
+          ### Windows SmartScreen警告について
+          初回起動時に警告が表示される場合：
+          1. 「詳細情報」をクリック
+          2. 「実行」をクリック
+          
+          詳細な手順は[README.md](https://github.com/yoshiken/vrc-print-upload/blob/main/README.md)をご確認ください。
+        
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: vrc-print-gui-windows
+        path: |
+          vrc-print-gui/build/bin/vrc-print-gui.exe

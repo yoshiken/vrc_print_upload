@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>VRChat Print Upload</title>
+    <link rel="stylesheet" href="./src/style.css"/>
+</head>
+<body>
+    <div id="app">
+        <!-- Login Screen -->
+        <div id="login-screen" class="screen">
+            <div class="container">
+                <div class="login-card">
+                    <h1>VRChat Print Upload</h1>
+                    <p class="subtitle">VRChatプリント機能に画像をアップロード</p>
+                    
+                    <form id="login-form">
+                        <div class="form-group">
+                            <label for="username">ユーザー名</label>
+                            <input type="text" id="username" placeholder="VRChatユーザー名" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="password">パスワード</label>
+                            <input type="password" id="password" placeholder="パスワード" required>
+                        </div>
+                        
+                        <button type="submit" id="login-btn" class="btn btn-primary">
+                            <span class="btn-text">ログイン</span>
+                            <span class="btn-loading hidden">ログイン中...</span>
+                        </button>
+                    </form>
+                    
+                    <!-- 2FA Section (hidden by default) -->
+                    <div id="two-factor-section" class="two-factor-section hidden">
+                        <h3>二段階認証</h3>
+                        <p>ログインを完了するには2FAコードを入力してください</p>
+                        
+                        <div class="form-group">
+                            <label for="two-factor-code">2FAコード</label>
+                            <input type="text" id="two-factor-code" placeholder="123456" maxlength="6">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="recovery-code">
+                                リカバリーコードを使用
+                            </label>
+                        </div>
+                        
+                        <button type="button" id="verify-2fa-btn" class="btn btn-primary">
+                            認証
+                        </button>
+                    </div>
+                    
+                    <div id="login-status" class="status-message"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Screen -->
+        <div id="main-screen" class="screen hidden">
+            <div class="container">
+                <!-- Header -->
+                <header class="header">
+                    <div class="header-left">
+                        <h1>VRChat Print Upload</h1>
+                        <span id="user-info" class="user-info">Logged in as: ...</span>
+                    </div>
+                    <div class="header-right">
+                        <button id="logout-btn" class="btn btn-secondary">ログアウト</button>
+                    </div>
+                </header>
+                
+                <!-- Main Content -->
+                <main class="main-content">
+                    <div class="content-grid">
+                        <!-- File Upload Section -->
+                        <section class="upload-section">
+                            <div class="card">
+                                <h2>画像を選択</h2>
+                                
+                                <!-- Drag & Drop Zone -->
+                                <div id="drop-zone" class="drop-zone">
+                                    <div class="drop-zone-content">
+                                        <svg class="upload-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                            <polyline points="7,10 12,15 17,10"></polyline>
+                                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                                        </svg>
+                                        <p class="drop-zone-text">
+                                            <button type="button" id="file-select-btn" class="btn btn-primary">画像ファイルを選択</button>
+                                        </p>
+                                        <p class="drop-zone-hint">PNG、JPEG、GIF対応（最大32MB）<br>
+                                        <small>※ 確実なアップロードには上記ボタンをご利用ください</small></p>
+                                    </div>
+                                </div>
+                                
+                                <input type="file" id="file-input" accept="image/*" class="hidden">
+                                
+                                <!-- Selected File Info -->
+                                <div id="file-info" class="file-info hidden">
+                                    <div class="file-preview">
+                                        <img id="image-preview" alt="Selected image preview">
+                                    </div>
+                                    <div class="file-details">
+                                        <p id="file-name">ファイルが選択されていません</p>
+                                        <button type="button" id="clear-file-btn" class="btn btn-small">クリア</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                        
+                        <!-- Options Section -->
+                        <section class="options-section">
+                            <div class="card">
+                                <h2>アップロード設定</h2>
+                                
+                                <!-- Resize Options -->
+                                <div class="form-group">
+                                    <label class="form-label">リサイズ設定</label>
+                                    <div class="radio-group">
+                                        <label class="radio-label">
+                                            <input type="radio" name="resize" value="resize" checked>
+                                            <span class="radio-custom"></span>
+                                            1080pにリサイズ（推奨）
+                                        </label>
+                                        <label class="radio-label">
+                                            <input type="radio" name="resize" value="keep">
+                                            <span class="radio-custom"></span>
+                                            元のサイズを保持（最大2048×2048）
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <!-- Optional Fields -->
+                                <div class="form-group">
+                                    <label for="note">メモ（任意）</label>
+                                    <textarea id="note" placeholder="この画像についてのメモを入力..."></textarea>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="world-id">ワールドID（任意）</label>
+                                    <input type="text" id="world-id" placeholder="wrld_12345678-1234-1234-1234-123456789012">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="world-name">ワールド名（任意）</label>
+                                    <input type="text" id="world-name" placeholder="素晴らしいワールド">
+                                </div>
+                                
+                                <!-- Upload Button -->
+                                <button type="button" id="upload-btn" class="btn btn-primary btn-large" disabled>
+                                    <span class="btn-text">画像をアップロード</span>
+                                    <span class="btn-loading hidden">アップロード中...</span>
+                                </button>
+                                
+                                <!-- Progress Bar -->
+                                <div id="upload-progress" class="progress-container hidden">
+                                    <div class="progress-bar">
+                                        <div id="progress-fill" class="progress-fill"></div>
+                                    </div>
+                                    <p id="progress-text" class="progress-text">準備中...</p>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </main>
+            </div>
+            
+            <!-- Status Messages (Fixed at top) -->
+            <div id="main-status" class="status-message"></div>
+        </div>
+    </div>
+    
+    <script src="./src/main.js" type="module"></script>
+</body>
+</html>

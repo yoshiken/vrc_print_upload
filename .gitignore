@@ -4,7 +4,6 @@
 *.dll
 *.so
 *.dylib
-vrc-print
 
 # Test binary, built with `go test -c`
 *.test
@@ -17,21 +16,87 @@ vrc-print
 
 # Go workspace file
 go.work
+go.work.sum
 
-# Config directory
-.vrc-print/
+# Build directories
+build/
+dist/
 
-# IDE
-.idea/
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
 .vscode/
+.idea/
 *.swp
 *.swo
 *~
 
-# OS
-.DS_Store
-Thumbs.db
+# Config and sensitive files
+config.yaml
+config.yml
+cookies.json
+.env
+.env.local
+.env.*.local
 
-# Build output
-dist/
-build/
+# Logs
+*.log
+logs/
+
+# Test files
+test_*.go
+*_test_output.txt
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Node.js (for frontend dependencies)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+
+# Frontend build artifacts
+frontend/dist/
+frontend/build/
+
+# Wails specific
+frontend/wailsjs/
+app.syso
+
+# Coverage reports
+coverage.out
+coverage.html
+
+# Test images and uploads
+*.png
+*.jpg
+*.jpeg
+*.gif
+!frontend/src/assets/images/*.png
+!frontend/src/assets/images/*.jpg
+!frontend/src/assets/images/*.jpeg
+!frontend/src/assets/images/*.gif
+
+# VRC Print specific
+.vrc-print/
+vrc-print
+vrc-print.exe
+vrc-print-gui.exe
+vrc-print-gui/vrc-print-gui
+
+# Backup files
+*.bak
+*.backup

@@ -1,130 +1,73 @@
-# VRChat Print Upload CLI
+# VRChat Print Upload GUI
 
-VRChatのプリント機能に画像をアップロードするためのCLIツールです。2段階認証（2FA）に対応しています。
+VRChatのプリント機能に画像をアップロードするためのGUIアプリケーションです。2段階認証（2FA）に対応し、使いやすいインターフェースを提供します。
+
+## ダウンロード
+
+最新版は[Releases](https://github.com/yoshiken/vrc-print-upload/releases)からダウンロードできます。
+
+- **vrc-print-gui.exe**: Windows用GUIアプリケーション
 
 ## 機能
 
 - 🔐 2段階認証（TOTP/リカバリーコード）対応
 - 🖼️ 画像の自動リサイズ・最適化
 - 🍪 認証情報の永続化
-- 🔄 自動リトライ機能
 - 📝 画像へのメモ・ワールド情報の追加
-
-## インストール
-
-### Go経由でインストール
-
-```bash
-go install github.com/yoshiken/vrc-print-upload/cmd/vrc-print@latest
-```
-
-### ソースからビルド
-
-```bash
-git clone https://github.com/yoshiken/vrc-print-upload.git
-cd vrc-print-upload
-go build -o vrc-print cmd/vrc-print/main.go
-```
+- 🖥️ 使いやすいGUIインターフェース
+- 🎌 日本語完全対応
+- 📁 ドラッグ&ドロップ対応
 
 ## 使い方
 
-### 1. ログイン
+1. **vrc-print-gui.exe** をダウンロードして実行
+2. VRChatのユーザー名とパスワードでログイン
+3. 画像を選択（ボタンクリックまたはドラッグ&ドロップ）
+4. オプションを設定：
+   - **リサイズオプション**: 
+     - 「1080pにリサイズ」: 1920×1080 または 1080×1920 に自動変換
+     - 「元のサイズを保持」: 元解像度保持（2048×2048超は自動圧縮）
+   - **メモ**: 画像に関するメモ（任意）
+   - **ワールド情報**: ワールドIDと名前（任意）
+5. 「画像をアップロード」ボタンをクリック
 
-初回は認証が必要です：
+### ⚠️ Windows SmartScreen警告について
 
-```bash
-# 通常のログイン
-vrc-print login -u your_username -p your_password
+初回起動時にWindows Defender SmartScreenの警告が表示される場合があります：
 
-# インタラクティブモード（パスワードを隠す）
-vrc-print login
-Username: your_username
-Password: ****
-Enter 2FA code: 123456
-✓ Login successful
-```
+1. **「WindowsによってPCが保護されました」**という画面が表示される
+2. **「詳細情報」**をクリック
+3. **「実行」**ボタンをクリック
+4. 一度実行すると、次回以降は警告されません
 
-リカバリーコードを使用する場合：
+この警告は、アプリケーションがコード署名されていないために表示されます。アプリケーション自体は安全です。
 
-```bash
-vrc-print login -u your_username -p your_password --recovery-code
-Enter recovery code: XXXX-XXXX-XXXX
-✓ Login successful
-```
-
-### 2. 画像のアップロード
-
-```bash
-# 基本的な使い方
-vrc-print upload image.png
-
-# メモを追加
-vrc-print upload image.png -n "素敵な風景"
-
-# ワールド情報を追加
-vrc-print upload image.png -w "wrld_12345678-1234-1234-1234-123456789012" --world-name "My World"
-
-# 元の解像度を保持してアップロード（最大2048×2048）
-vrc-print upload image.png --no-resize
-```
-
-### 3. 認証状態の確認
-
-```bash
-vrc-print auth status
-✓ Authenticated
-  User: YourDisplayName
-  ID: usr_12345678-1234-1234-1234-123456789012
-  2FA: true
-```
-
-### 4. ログアウト
-
-```bash
-vrc-print auth logout
-✓ Logged out successfully
-```
-
-### 5. 設定の確認
-
-```bash
-vrc-print config
-Configuration:
-  Config dir: /home/user/.vrc-print
-  Cookie file: /home/user/.vrc-print/cookies.json
-  API base URL: https://api.vrchat.cloud/api/1
-```
+#### セキュリティについて
+- ソースコードは完全に公開されています
+- VirusTotalでのスキャン結果: [リンク予定]
+- SHA256ハッシュ値は各リリースページで確認できます
 
 ## 画像仕様
 
 - **対応形式**: PNG, JPEG, GIF等（自動的にPNGに変換）
 - **最大解像度**: 2048×2048ピクセル（自動リサイズ）
 - **最大ファイルサイズ**: 32MB
-- **アップロード時の解像度**: デフォルトで1080p（1920×1080 または 1080×1920）に自動変換
-- **オプション**: `--no-resize` フラグで元の解像度を保持（最大2048×2048まで）
+- **アップロード時の解像度**: 
+  - デフォルト: 1080p（1920×1080 または 1080×1920）に自動変換
+  - 元サイズ保持選択時: 元の解像度を保持（2048×2048超は自動圧縮）
 
-## 設定
+## ファイル保存場所
 
-### 環境変数
-
-```bash
-# APIのベースURLを変更（デフォルト: https://api.vrchat.cloud/api/1）
-export VRC_PRINT_API_BASE_URL="https://api.vrchat.cloud/api/1"
-```
-
-### 設定ファイル
-
-`~/.vrc-print/config.yaml` で設定をカスタマイズできます：
-
-```yaml
-api_base_url: "https://api.vrchat.cloud/api/1"
-```
+- **認証情報（Cookie）**: `cookies.json` (実行ファイルと同じディレクトリ)
+- **ファイル権限**: 0600 (所有者のみ読み書き可能)
+- **ポータブル性**: 実行ファイルと認証情報を一緒に管理可能
 
 ## セキュリティ
 
-- 認証情報（Cookie）は `~/.vrc-print/cookies.json` に保存されます
-- ファイルのパーミッションは `0700` に設定されます
+- 認証情報は実行ファイルと同じディレクトリの `cookies.json` に暗号化して保存
+- ファイルのパーミッションは適切に設定されます
 - パスワードは入力時にマスクされます
+- 2段階認証（TOTP/リカバリーコード）完全対応
 
 ## トラブルシューティング
 
@@ -138,7 +81,8 @@ api_base_url: "https://api.vrchat.cloud/api/1"
 
 1. 画像ファイルが存在し、読み取り可能か確認
 2. ファイルサイズが32MB以下か確認
-3. ログイン状態を `vrc-print auth status` で確認
+3. アプリケーションを再起動してログイン状態を確認
+4. インターネット接続を確認
 
 ### 2FAコードが無効
 
@@ -151,12 +95,18 @@ api_base_url: "https://api.vrchat.cloud/api/1"
 ### 必要要件
 
 - Go 1.21以上
-- 依存パッケージは `go.mod` を参照
+- Node.js 18以上（GUI版）
+- Wails v2（GUI版）
 
 ### ビルド
 
 ```bash
-go build -o vrc-print cmd/vrc-print/main.go
+# Wailsのインストール
+go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+# ビルド
+cd vrc-print-gui
+wails build --platform windows/amd64
 ```
 
 ### テスト

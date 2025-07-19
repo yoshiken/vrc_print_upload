@@ -11,7 +11,6 @@ import (
 
 	"github.com/go-resty/resty/v2"
 	"github.com/yoshiken/vrc-print-upload/internal/config"
-	"golang.org/x/term"
 )
 
 type Client struct {
@@ -79,10 +78,7 @@ func (c *Client) Login(opts LoginOptions) error {
 	}
 
 	if len(authResp.RequiresTwoFactorAuth) > 0 || (authResp.User != nil && len(authResp.User.RequiresTwoFactorAuth) > 0) {
-		if opts.RecoveryCode {
-			return c.verifyRecoveryCode()
-		}
-		return c.verifyTOTP()
+		return fmt.Errorf("2FA required - use VerifyTOTPCode or VerifyRecoveryCode methods")
 	}
 
 	if err := c.saveCookiesToFile(); err != nil {
@@ -92,11 +88,9 @@ func (c *Client) Login(opts LoginOptions) error {
 	return nil
 }
 
-func (c *Client) verifyTOTP() error {
-	fmt.Print("Enter 2FA code: ")
-	var code string
-	fmt.Scanln(&code)
 
+// VerifyTOTPCode verifies TOTP code programmatically (for GUI use)
+func (c *Client) VerifyTOTPCode(code string) error {
 	resp, err := c.httpClient.R().
 		SetBody(map[string]string{"code": code}).
 		SetResult(&TwoFactorAuthResponse{}).
@@ -119,11 +113,9 @@ func (c *Client) verifyTOTP() error {
 	return nil
 }
 
-func (c *Client) verifyRecoveryCode() error {
-	fmt.Print("Enter recovery code: ")
-	var code string
-	fmt.Scanln(&code)
 
+// VerifyRecoveryCode verifies recovery code programmatically (for GUI use)
+func (c *Client) VerifyRecoveryCode(code string) error {
 	resp, err := c.httpClient.R().
 		SetBody(map[string]string{"code": code}).
 		SetResult(&TwoFactorAuthResponse{}).
@@ -213,11 +205,17 @@ func (c *Client) saveCookies(client *resty.Client, resp *resty.Response) error {
 }
 
 func (c *Client) saveCookiesToFile() error {
-	file, err := os.Create(c.config.CookieFile())
+	cookieFile := c.config.CookieFile()
+	file, err := os.Create(cookieFile)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
+
+	// Set proper file permissions (owner read/write only)
+	if err := os.Chmod(cookieFile, 0600); err != nil {
+		return err
+	}
 
 	return json.NewEncoder(file).Encode(c.cookies)
 }
@@ -245,11 +243,3 @@ func (c *Client) loadCookies() error {
 	return nil
 }
 
-func ReadPassword() (string, error) {
-	password, err := term.ReadPassword(int(os.Stdin.Fd()))
-	fmt.Println()
-	if err != nil {
-		return "", err
-	}
-	return string(password), nil
-}
