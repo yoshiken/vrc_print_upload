@@ -31,6 +31,7 @@ type Options struct {
 	Note      string
 	WorldID   string
 	WorldName string
+	NoResize  bool
 }
 
 type UploadResult struct {
@@ -50,7 +51,7 @@ func New(client *resty.Client) *Uploader {
 
 func (u *Uploader) Upload(opts Options) (*UploadResult, error) {
 	// Validate and prepare image
-	imageData, err := u.prepareImage(opts.ImagePath)
+	imageData, err := u.prepareImage(opts.ImagePath, opts.NoResize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare image: %w", err)
 	}
@@ -137,7 +138,7 @@ func (u *Uploader) Upload(opts Options) (*UploadResult, error) {
 	return resp.Result().(*UploadResult), nil
 }
 
-func (u *Uploader) prepareImage(imagePath string) ([]byte, error) {
+func (u *Uploader) prepareImage(imagePath string, noResize bool) ([]byte, error) {
 	// Check file exists
 	info, err := os.Stat(imagePath)
 	if err != nil {
@@ -178,10 +179,16 @@ func (u *Uploader) prepareImage(imagePath string) ([]byte, error) {
 
 	// Convert to 1080p for prints (as per VRChat spec)
 	// 1920x1080 or 1080x1920 depending on orientation
-	if width > height {
-		img = imaging.Resize(img, 1920, 1080, imaging.Lanczos)
+	// Skip this step if noResize is true
+	if !noResize {
+		if width > height {
+			img = imaging.Resize(img, 1920, 1080, imaging.Lanczos)
+		} else {
+			img = imaging.Resize(img, 1080, 1920, imaging.Lanczos)
+		}
+		fmt.Printf("Image resized to 1080p\n")
 	} else {
-		img = imaging.Resize(img, 1080, 1920, imaging.Lanczos)
+		fmt.Printf("Keeping original resolution (up to %dx%d)\n", bounds.Dx(), bounds.Dy())
 	}
 
 	// Encode as PNG

@@ -62,7 +62,8 @@ go vet ./...
 ### Image Processing
 - Supported formats: PNG, JPEG, GIF (auto-converts to PNG)
 - Max resolution: 2048×2048 pixels
-- Upload resolution: 1080p (1920×1080 or 1080×1920)
+- Default upload resolution: 1080p (1920×1080 or 1080×1920)
+- Optional: Use `--no-resize` flag to keep original resolution (up to 2048×2048)
 - Max file size: 32MB
 
 ## Development Notes
